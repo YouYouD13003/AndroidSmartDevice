@@ -41,7 +41,8 @@ class DeviceDetailsActivity : ComponentActivity() {
                 button1ClickCount = button1ClickCount,
                 button3ClickCount = button3ClickCount,
                 onLedAction = { ledValue -> writeToLEDCharacteristic(ledValue) },
-                onSubscribe = { subscribeToButtonNotifications() },
+                onSubscribeClick1 = { subscribeToButtonNotifications(2, 1, 1) }, // Service 3, Caractéristique 2
+                onSubscribeClick3 = { subscribeToButtonNotifications(3, 0, 3) }, // Service 4, Caractéristique 1
                 onDisconnect = { disconnectFromDevice() },
                 onExit = { finish() }
             )
@@ -90,12 +91,12 @@ class DeviceDetailsActivity : ComponentActivity() {
                 runOnUiThread {
                     when (characteristic) {
                         services?.getOrNull(2)?.characteristics?.getOrNull(1) -> {
-                            // Increment button 1 counter
+                            // Service 3, Caractéristique 2 pour le bouton 1
                             button1ClickCount++
                             Toast.makeText(this@DeviceDetailsActivity, "Bouton 1: $button1ClickCount clics", Toast.LENGTH_SHORT).show()
                         }
                         services?.getOrNull(3)?.characteristics?.getOrNull(0) -> {
-                            // Increment button 3 counter
+                            // Service 4, Caractéristique 1 pour le bouton 3
                             button3ClickCount++
                             Toast.makeText(this@DeviceDetailsActivity, "Bouton 3: $button3ClickCount clics", Toast.LENGTH_SHORT).show()
                         }
@@ -119,30 +120,17 @@ class DeviceDetailsActivity : ComponentActivity() {
         }
     }
 
-    private fun subscribeToButtonNotifications() {
-        val button1Characteristic = services?.getOrNull(2)?.characteristics?.getOrNull(1)
-        val button3Characteristic = services?.getOrNull(3)?.characteristics?.getOrNull(0)
-
-        if (button1Characteristic != null) {
-            enableNotification(button1Characteristic)
-            Log.i("DeviceDetailsActivity", "Abonné aux notifications du bouton 1")
+    private fun subscribeToButtonNotifications(serviceIndex: Int, characteristicIndex: Int, buttonId: Int) {
+        val characteristic = services?.getOrNull(serviceIndex)?.characteristics?.getOrNull(characteristicIndex)
+        if (characteristic != null) {
+            bluetoothGatt?.setCharacteristicNotification(characteristic, true)
+            characteristic.descriptors.forEach { descriptor ->
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                bluetoothGatt?.writeDescriptor(descriptor)
+            }
+            Log.i("DeviceDetailsActivity", "Abonné aux notifications pour le bouton $buttonId")
         } else {
-            Log.e("DeviceDetailsActivity", "Impossible de s'abonner au bouton 1")
-        }
-
-        if (button3Characteristic != null) {
-            enableNotification(button3Characteristic)
-            Log.i("DeviceDetailsActivity", "Abonné aux notifications du bouton 3")
-        } else {
-            Log.e("DeviceDetailsActivity", "Impossible de s'abonner au bouton 3")
-        }
-    }
-
-    private fun enableNotification(characteristic: BluetoothGattCharacteristic) {
-        bluetoothGatt?.setCharacteristicNotification(characteristic, true)
-        characteristic.descriptors.forEach { descriptor ->
-            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            bluetoothGatt?.writeDescriptor(descriptor)
+            Log.e("DeviceDetailsActivity", "Impossible de s'abonner au bouton $buttonId")
         }
     }
 
@@ -157,7 +145,8 @@ class DeviceDetailsActivity : ComponentActivity() {
         button1ClickCount: Int,
         button3ClickCount: Int,
         onLedAction: (Byte) -> Unit,
-        onSubscribe: () -> Unit,
+        onSubscribeClick1: () -> Unit,
+        onSubscribeClick3: () -> Unit,
         onDisconnect: () -> Unit,
         onExit: () -> Unit
     ) {
@@ -171,7 +160,6 @@ class DeviceDetailsActivity : ComponentActivity() {
             Text(text = "État de la connexion : $connectionStatus")
             Spacer(modifier = Modifier.height(16.dp))
 
-            // LED Control Buttons
             Text(text = "Contrôle des LEDs")
             Row {
                 Button(onClick = { onLedAction(0x01) }) { Text(text = "LED 1") }
@@ -183,19 +171,18 @@ class DeviceDetailsActivity : ComponentActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Button Counters
             Text(text = "Compteurs des boutons")
             Text(text = "Bouton 1: $button1ClickCount clics")
             Text(text = "Bouton 3: $button3ClickCount clics")
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Subscription Button
-            Button(onClick = onSubscribe) { Text(text = "S'abonner aux boutons") }
+            Button(onClick = onSubscribeClick1) { Text(text = "S'abonner au bouton 1") }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onSubscribeClick3) { Text(text = "S'abonner au bouton 3") }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Disconnect and Exit
             Button(onClick = onDisconnect) { Text(text = "Déconnecter") }
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = onExit) { Text(text = "Quitter") }
