@@ -25,6 +25,10 @@ class DeviceDetailsActivity : ComponentActivity() {
     private var button1ClickCount by mutableStateOf(0)
     private var button3ClickCount by mutableStateOf(0)
 
+    // Variables pour suivre les abonnements
+    private var isSubscribedButton1 by mutableStateOf(false)
+    private var isSubscribedButton3 by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -59,6 +63,8 @@ class DeviceDetailsActivity : ComponentActivity() {
         bluetoothGatt?.close()
         bluetoothGatt = null
         connectionStatus = "Déconnecté"
+        isSubscribedButton1 = false
+        isSubscribedButton3 = false
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -92,13 +98,17 @@ class DeviceDetailsActivity : ComponentActivity() {
                     when (characteristic) {
                         services?.getOrNull(2)?.characteristics?.getOrNull(1) -> {
                             // Service 3, Caractéristique 2 pour le bouton 1
-                            button1ClickCount++
-                            Toast.makeText(this@DeviceDetailsActivity, "Bouton 1: $button1ClickCount clics", Toast.LENGTH_SHORT).show()
+                            if (isSubscribedButton1) {
+                                button1ClickCount++
+                                Toast.makeText(this@DeviceDetailsActivity, "Bouton 1: $button1ClickCount clics", Toast.LENGTH_SHORT).show()
+                            }
                         }
                         services?.getOrNull(3)?.characteristics?.getOrNull(0) -> {
                             // Service 4, Caractéristique 1 pour le bouton 3
-                            button3ClickCount++
-                            Toast.makeText(this@DeviceDetailsActivity, "Bouton 3: $button3ClickCount clics", Toast.LENGTH_SHORT).show()
+                            if (isSubscribedButton3) {
+                                button3ClickCount++
+                                Toast.makeText(this@DeviceDetailsActivity, "Bouton 3: $button3ClickCount clics", Toast.LENGTH_SHORT).show()
+                            }
                         }
                         else -> {
                             Toast.makeText(this@DeviceDetailsActivity, "Notification inconnue", Toast.LENGTH_SHORT).show()
@@ -128,7 +138,17 @@ class DeviceDetailsActivity : ComponentActivity() {
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 bluetoothGatt?.writeDescriptor(descriptor)
             }
-            Log.i("DeviceDetailsActivity", "Abonné aux notifications pour le bouton $buttonId")
+            // Activer uniquement l'abonnement
+            when (buttonId) {
+                1 -> {
+                    isSubscribedButton1 = true
+                    Toast.makeText(this, "Abonné au bouton 1", Toast.LENGTH_SHORT).show()
+                }
+                3 -> {
+                    isSubscribedButton3 = true
+                    Toast.makeText(this, "Abonné au bouton 3", Toast.LENGTH_SHORT).show()
+                }
+            }
         } else {
             Log.e("DeviceDetailsActivity", "Impossible de s'abonner au bouton $buttonId")
         }
